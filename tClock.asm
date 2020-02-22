@@ -53,7 +53,7 @@
 0131| 	SETB ET1
 0133| 	SETB EX0
 0135| 	SETB TR0
-0137| 	CLR 0000h ;Bit value to change mode
+0137| 	CLR 0000h ;Bit value to change mo
 0139| 	AJMP WAIT
        
       ORG 0150h
