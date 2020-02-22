@@ -43,17 +43,19 @@ INIT:
 	MOV R2, #0000h
 	;Setting up the timer and interrupt
 	MOV TMOD, #11h ;Set Timers to be 2 8-bits
-	SETB IT0 ;Set external interrupt 0 to be edge triggered
+	SETB IT0	;Set external interrupt 0 to be edge triggered
+	SETB IT1	;Set external interrupt 1 to be edge triggered
 	MOV TH0, #0ECh 	
 	MOV TL0, #081h
-	MOV TH1, #0ECh 	
-	MOV TL1, #081h
-	SETB EA
-	SETB ET0
-	SETB ET1
-	SETB EX0
-	SETB TR0
-	CLR 0000h
+	MOV TH1, #0D8h 	
+	MOV TL1, #0F9h
+	SETB EA		;Activate Global Interrupt
+	SETB ET0	;Activate Timer0 Interrupt
+	SETB ET1	;Activate Timer1 Interrupt
+	SETB EX0	;Activate External Interrupt0
+	SETB EX1	;Activate External Interrupt1
+	SETB TR0	;Start running the timer0
+	CLR 0000h	;Bit determining which mode
 	AJMP WAIT
 
 ORG 0150h
@@ -61,15 +63,17 @@ ORG 0150h
 WAIT:
 	JMP $
 	
-; Time interrrupt ISR
+; Timer0 interrrupt ISR
 ORG 0155h
 ISRTF0: 
 	CLR EA	
 	; Reset clock
 	MOV TH0, #0ECh 	
 	MOV TL0, #081h
-	INC R2
+	;Call for Display
 	ACALL DISPLAY
+	;Counter for Clock
+	INC R2
 	CJNE R2, #200, SKIP
 	ACALL UPDATE
 	MOV R2, #00h
@@ -81,13 +85,9 @@ ORG 0200h
 ISRTF1:
 	CLR EA	
 	; Reset clock
-	MOV TH1, #0ECh 	
-	MOV TL1, #081h
-	INC R3
-	CJNE R3, #2, SKIP2
+	MOV TH1, #0D8h 	
+	MOV TL1, #0F9h
 	ACALL UPDATESTP
-	MOV R3, #00h
-SKIP2:
 	SETB EA
 	RETI
 
@@ -95,13 +95,22 @@ ORG 0250h
 ISRIE0:
 	CPL 0000h
 	MOV R0, #tmsONE
-	JB 0000h, modestp
+	JB 0000h, modeSTP
 	MOV R0, #secONE
-modestp:
+	MOV tmsONE, #00h
+	MOV tmsTEN, #10h
+	MOV tseONE, #20h
+	MOV tseTEN, #30h
+modeSTP:
 	RETI
 
 ORG 0300h
 ISRIE1:
+	JB 000h, STARTSTP
+	AJMP endIE1
+STARTSTP:
+	CPL TR1
+endIE1:
 	RETI
 
 
@@ -154,6 +163,35 @@ INCC:
 
 ORG 600h
 UPDATESTP:
+MOV R1, #tmsONE
+; updating secONE
+	MOV A, @R1
+	CJNE A, #9h, INCCSTP
+	MOV A, #00h
+	MOV @R1, A
+	INC R1
+; updateing secTEN
+	MOV A, @R1
+	CJNE A, #19h, INCCSTP
+	MOV A, #10h
+	MOV @R1, A
+	INC R1
+; updating minONE
+	MOV A, @R1
+	CJNE A, #29h, INCCSTP
+	MOV A, #20h
+	MOV @R1, A
+	INC R1
+; updating minTEN
+	MOV A, @R1
+	CJNE A, #35h, INCCSTP
+	MOV A, #30h
+	MOV @R1, A
+	INC R1	
+INCCSTP:
+	INC A
+	MOV @R1, A
+	RET
 RET
 END
 
